@@ -1,78 +1,95 @@
-# Fraud Detection Model with SMOTE
+# Fraud Detection with SMOTE
 import numpy as np
 import pandas as pd
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import classification_report, confusion_matrix, accuracy_score
 from imblearn.over_sampling import SMOTE
+import warnings
+warnings.filterwarnings('ignore')
 
-# 1. Create synthetic dataset
+
 np.random.seed(42)
+
+print("=== Fraud Detection Model ===")
+
+# 1. Creating synthetic dataset
+print("Creating dataset...")
+n_samples = 5000
 data = pd.DataFrame(
-    np.random.randn(10000, 30),  # 30 feature columns
-    columns=[f"V{i}" for i in range(1, 31)]
+    np.random.randn(n_samples, 20),
+    columns=[f"V{i}" for i in range(1, 21)]
 )
 
-# 2. Add 'Class' column (0 = Normal, 1 = Fraud)
-data["Class"] = np.random.choice([0, 1], size=10000, p=[0.97, 0.03])
+# Create the target (3% fraud rate)
+data["Class"] = np.random.choice([0, 1], size=n_samples, p=[0.97, 0.03])
 
-# 3. Add 'Transaction Amount' column using log-normal distribution
-data["Amount"] = np.random.lognormal(mean=3, sigma=1, size=10000)
+# Add transaction amounts:
+data["Amount"] = np.where(
+    data["Class"] == 0,
+    np.random.lognormal(2.0, 0.8, n_samples),  # Normal transactions
+    np.random.lognormal(3.5, 1.0, n_samples)   # Fraud transactions
+)
 
-print("Dataset Created")
-print("Shape:", data.shape)
-print(data.head())
+print(f"Dataset: {data.shape[0]} samples, {data.shape[1]} features")
+print(f"Normal: {(data['Class']==0).sum()}, Fraud: {(data['Class']==1).sum()}")
 
-# 4. Split into features and labels
+# 2. Prepare data 
 X = data.drop("Class", axis=1)
 y = data["Class"]
 
-# 5. Handle class imbalance with SMOTE
-smote = SMOTE(random_state=42)
-X_resampled, y_resampled = smote.fit_resample(X, y)
-
-print("\nAfter SMOTE balancing:")
-print(y_resampled.value_counts())
-
-# 6. Train-test split
+# 3. Train-test split
 X_train, X_test, y_train, y_test = train_test_split(
-    X_resampled, y_resampled, test_size=0.3, random_state=42
+    X, y, test_size=0.3, random_state=42, stratify=y
 )
 
-print("\nData Split into Train & Test")
+# 4. Applying SMOTE to train data
+print("\nApplying SMOTE...")
+smote = SMOTE(random_state=42)
+X_train_balanced, y_train_balanced = smote.fit_resample(X_train, y_train)
 
-# 7. Train Random Forest Classifier
-model = RandomForestClassifier(n_estimators=200, random_state=42)
-model.fit(X_train, y_train)
+print(f"After SMOTE: {len(X_train_balanced)} balanced samples")
 
-print("\nModel Trained Successfully")
+# 5. Training the model model
+print("Training Random Forest...")
+model = RandomForestClassifier(
+    n_estimators=100,
+    max_depth=10,
+    random_state=42,
+    class_weight='balanced'
+)
 
-# 8. Predictions
+model.fit(X_train_balanced, y_train_balanced)
+
+# 6. Make predictions
 y_pred = model.predict(X_test)
 
-# 9. Model Evaluation
-print("\nModel Evaluation Results")
-print("----------------------------------------")
-print("Accuracy: {:.2f}%".format(accuracy_score(y_test, y_pred) * 100))
+# 7. Evaluate model
+print("\n=== Results ===")
+accuracy = accuracy_score(y_test, y_pred)
+print(f"Accuracy: {accuracy:.3f} ({accuracy*100:.1f}%)")
 
-# Confusion Matrix
+# Confusion matrix
 cm = confusion_matrix(y_test, y_pred)
-print("\nConfusion Matrix:")
-print("               Predicted Normal   Predicted Fraud")
-print(f"Actual Normal             {cm[0,0]}                {cm[0,1]}")
-print(f"Actual Fraud              {cm[1,0]}                {cm[1,1]}")
+tn, fp, fn, tp = cm.ravel()
 
-# Classification Report (converted to percentages)
-report = classification_report(y_test, y_pred, target_names=["Normal", "Fraud"], output_dict=True)
+print(f"\nConfusion Matrix:")
+print(f"           Predicted")
+print(f"        Normal  Fraud")
+print(f"Normal    {tn:3d}    {fp:3d}")
+print(f"Fraud     {fn:3d}    {tp:3d}")
 
-print("\nClassification Report:")
-for label in report:
-    if label in ["Normal", "Fraud"]:
-        precision = report[label]["precision"] * 100
-        recall = report[label]["recall"] * 100
-        f1 = report[label]["f1-score"] * 100
-        support = report[label]["support"]
-        print(f"{label:>10} -> Precision: {precision:.2f}%, Recall: {recall:.2f}%, F1-Score: {f1:.2f}% (Support: {support})")
+# Key metrics
+precision = tp / (tp + fp) if (tp + fp) > 0 else 0
+recall = tp / (tp + fn) if (tp + fn) > 0 else 0
+f1 = 2 * (precision * recall) / (precision + recall) if (precision + recall) > 0 else 0
 
-accuracy = report["accuracy"] * 100
-print(f"\nOverall Accuracy: {accuracy:.2f}%")
+print(f"\nFraud Detection Metrics:")
+print(f"Precision: {precision:.3f} ({precision*100:.1f}%)")
+print(f"Recall:    {recall:.3f} ({recall*100:.1f}%)")
+print(f"F1-Score:  {f1:.3f} ({f1*100:.1f}%)")
+
+print(f"\nFrauds detected: {tp}/{tp+fn}")
+print(f"False alarms: {fp}")
+
+print("\n✓ Fraud detection completed!")
