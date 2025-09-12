@@ -54,4 +54,8 @@ fraud-detection-project/
     ├── output_example.png
     └── confusion_matrix.png
 
+OUTPUT
+<img width="767" height="594" alt="image" src="https://github.com/user-attachments/assets/9d0d2dd4-4ea3-4437-be2e-b40dcde95335" />
+
+
 
