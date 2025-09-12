@@ -1,0 +1,121 @@
+import pandas as pd
+import numpy as np
+from sklearn.linear_model import LinearRegression
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import mean_squared_error
+import matplotlib.pyplot as plt
+
+print("House Price Prediction Model")
+print("="*40)
+
+# Create some sample house data
+np.random.seed(100)  # so we get same results each time
+
+# Making fake house data
+num_houses = 1000
+print(f"Creating data for {num_houses} houses...")
+
+# House features
+house_size = np.random.normal(1500, 500, num_houses)  # sq ft
+rooms = np.random.randint(2, 6, num_houses)  # number of rooms
+location_score = np.random.uniform(1, 10, num_houses)  # location rating 1-10
+age = np.random.randint(1, 50, num_houses)  # house age in years
+
+# Making sure house size is positive, as the area can't be negative
+house_size = np.abs(house_size)
+
+# Calculate house price (this is our target)
+# Price depends on size, rooms, location, and age
+price = (house_size * 100 +   # $100 per sq ft
+         rooms * 5000 +       # $5000 per room
+         location_score * 8000 -  # location bonus
+         age * 1000 +         # price goes down with age
+         np.random.normal(0, 10000, num_houses))  # some random variation
+
+# Make sure prices are positive
+price = np.abs(price)
+
+# Put everything in a dataframe
+data = pd.DataFrame({
+    'size': house_size,
+    'rooms': rooms, 
+    'location': location_score,
+    'age': age,
+    'price': price
+})
+
+print("Sample of our data:")
+print(data.head())
+print()
+print("Data statistics:")
+print(data.describe())
+X = data[['size', 'rooms', 'location', 'age']]
+y = data['price']
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+print(f"\nTraining set: {len(X_train)} houses")
+print(f"Testing set: {len(X_test)} houses")
+
+# Creating and training the model
+model = LinearRegression()
+print("\nTraining the model...")
+model.fit(X_train, y_train)
+
+# Making predictions
+y_pred = model.predict(X_test)
+
+# Check how good our model is
+mse = mean_squared_error(y_test, y_pred)
+rmse = np.sqrt(mse)
+
+print("\nModel Results:")
+print(f"Mean Squared Error: ${mse:,.2f}")
+print(f"Root Mean Squared Error: ${rmse:,.2f}")
+
+# Show the coefficients (how much each feature affects price)
+features = ['size', 'rooms', 'location', 'age']
+coefficients = model.coef_
+intercept = model.intercept_
+
+print(f"\nModel equation:")
+print(f"Price = {intercept:.2f}", end="")
+for i, coef in enumerate(coefficients):
+    if coef >= 0:
+        print(f" + {coef:.2f} * {features[i]}", end="")
+    else:
+        print(f" - {abs(coef):.2f} * {features[i]}", end="")
+print()
+
+print(f"\nWhat each feature does to price:")
+for i, coef in enumerate(coefficients):
+    print(f"{features[i]}: ${coef:.2f} per unit")
+
+# Test with some example houses
+print("\nTesting with example houses:")
+examples = [
+    [2000, 3, 8, 5],   # 2000 sq ft, 3 rooms, location 8, 5 years old
+    [1200, 2, 5, 15],  # 1200 sq ft, 2 rooms, location 5, 15 years old
+    [2500, 4, 9, 2]    # 2500 sq ft, 4 rooms, location 9, 2 years old
+]
+
+for i, house in enumerate(examples, 1):
+    predicted_price = model.predict([house])[0]
+    print(f"House {i}: Size={house[0]} sq ft, Rooms={house[1]}, Location={house[2]}, Age={house[3]} years")
+    print(f"Predicted Price: ${predicted_price:,.2f}")
+    print()
+
+# Show how accurate our predictions are
+print("Comparing some actual vs predicted prices:")
+for i in range(10):
+    actual = y_test.iloc[i]
+    predicted = y_pred[i]
+    difference = abs(actual - predicted)
+    print(f"Actual: ${actual:,.2f}, Predicted: ${predicted:,.2f}, Difference: ${difference:,.2f}")
+
+# Calculate R-squared score
+from sklearn.metrics import r2_score
+r2 = r2_score(y_test, y_pred)
+print(f"\nR-squared score: {r2:.4f}")
+print(f"This means our model explains {r2*100:.1f}% of the price variation")
+
+print("\nModel training completed!")
