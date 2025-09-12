@@ -45,14 +45,6 @@ F1-Score:  0.675 (67.5%)
 Frauds detected: 31/79
 False alarms: 13
 
-✓ Fraud detection completed!
-
-You can also add a screenshot or image here, e.g.:
-
-
-
-
- 
 Project Structure
 fraud-detection-project/
 ├── fraud_detection.py
@@ -61,3 +53,5 @@ fraud-detection-project/
 └── screenshots/
     ├── output_example.png
     └── confusion_matrix.png
+
+
